@@ -190,28 +190,28 @@ class MapPageState extends State<MapPage> {
     circle.clear();
     markers.clear();
     setState(() {});
-    double distance = Geolocator.distanceBetween(
-        currentLocation!.latitude,
-        currentLocation.longitude,
-        selectedLocation!.latitude,
-        selectedLocation.longitude);
-
+    // double distance = Geolocator.distanceBetween(
+    //     currentLocation!.latitude,
+    //     currentLocation.longitude,
+    //     selectedLocation!.latitude,
+    //     selectedLocation.longitude);
+    sliderValue = 500;
     circle.add(
       Circle(
         circleId: const CircleId('myLocation'),
-        center: selectedLocation,
-        radius: 10000 * distance / 10000,
+        center: selectedLocation!,
+        radius: 10000 * sliderValue / 10,
         fillColor: Colors.blue.withOpacity(0.2),
         strokeColor: Colors.blue,
         strokeWidth: 2,
       ),
     );
 
-    if (distance / 1000 < sliderValue) {
-      sliderValue = distance / 1000;
-    } else {
-      sliderValue = 1000;
-    }
+    // if (distance / 1000 < sliderValue) {
+    //   sliderValue = distance / 1000;
+    // } else {
+    //   sliderValue = 1000;
+    // }
 
     markers.add(
       Marker(
@@ -231,7 +231,7 @@ class MapPageState extends State<MapPage> {
           item.location.latitude,
           item.location.longitude);
 
-      if (dis <= distance) {
+      if (dis <= 10000 * sliderValue / 10) {
         addMarker(item);
       }
     }
