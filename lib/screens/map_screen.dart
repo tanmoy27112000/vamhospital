@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -22,6 +23,7 @@ class MapPageState extends State<MapPage> {
   Set<Circle> circle = <Circle>{};
   double sliderValue = 200;
   late LocationData locationData;
+  LatLng? selectedLocationMarker;
   @override
   void initState() {
     super.initState();
@@ -69,23 +71,48 @@ class MapPageState extends State<MapPage> {
                     },
                   ),
                 ),
-                Slider.adaptive(
-                  value: sliderValue,
-                  min: 100,
-                  max: 1000,
-                  divisions: 10,
-                  onChanged: (value) {
-                    setState(() {
-                      sliderValue = value;
-                      updateMarker(
-                        currentLocation: LatLng(
-                          locationData.latitude!,
-                          locationData.longitude!,
-                        ),
-                      );
-                    });
-                  },
-                ),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: Colors.red[700],
+                    inactiveTrackColor: Colors.red[100],
+                    trackShape: const RoundedRectSliderTrackShape(),
+                    trackHeight: 4.0,
+                    thumbShape:
+                        const RoundSliderThumbShape(enabledThumbRadius: 12.0),
+                    thumbColor: Colors.redAccent,
+                    overlayColor: Colors.red.withAlpha(32),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 28.0),
+                    tickMarkShape: const RoundSliderTickMarkShape(),
+                    activeTickMarkColor: Colors.red[700],
+                    inactiveTickMarkColor: Colors.red[100],
+                    valueIndicatorShape:
+                        const PaddleSliderValueIndicatorShape(),
+                    valueIndicatorColor: Colors.redAccent,
+                    valueIndicatorTextStyle: const TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                  child: Slider(
+                    value: sliderValue,
+                    min: 100,
+                    max: 1000,
+                    divisions: 10,
+                    label: '${sliderValue.round()}',
+                    onChanged: (value) {
+                      setState(() {
+                        sliderValue = value;
+                        updateSliderMarker(
+                          currentLocation: selectedLocationMarker ??
+                              LatLng(
+                                locationData.latitude!,
+                                locationData.longitude!,
+                              ),
+                        );
+                      });
+                    },
+                  ),
+                )
               ],
             ),
     );
@@ -142,9 +169,80 @@ class MapPageState extends State<MapPage> {
     );
   }
 
-  updateMarker({LatLng? currentLocation}) async {
-    markers.clear();
+  addCircle({LatLng? currentLocation}) {
     circle.clear();
+    circle.add(
+      Circle(
+        circleId: const CircleId('myLocation'),
+        center: currentLocation ?? const LatLng(0, 0),
+        radius: 10000 * sliderValue / 10,
+        fillColor: Colors.blue.withOpacity(0.2),
+        strokeColor: Colors.blue,
+        strokeWidth: 2,
+      ),
+    );
+  }
+
+  addCustomCircle({
+    LatLng? currentLocation,
+    LatLng? selectedLocation,
+  }) {
+    circle.clear();
+    markers.clear();
+    setState(() {});
+    double distance = Geolocator.distanceBetween(
+        currentLocation!.latitude,
+        currentLocation.longitude,
+        selectedLocation!.latitude,
+        selectedLocation.longitude);
+
+    circle.add(
+      Circle(
+        circleId: const CircleId('myLocation'),
+        center: selectedLocation,
+        radius: 10000 * distance / 10000,
+        fillColor: Colors.blue.withOpacity(0.2),
+        strokeColor: Colors.blue,
+        strokeWidth: 2,
+      ),
+    );
+
+    if (distance / 1000 < sliderValue) {
+      sliderValue = distance / 1000;
+    } else {
+      sliderValue = 1000;
+    }
+
+    markers.add(
+      Marker(
+        markerId: const MarkerId('myLocation'),
+        position: LatLng(
+          locationData.latitude!,
+          locationData.longitude!,
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+      ),
+    );
+
+    for (var item in allUsers) {
+      double dis = Geolocator.distanceBetween(
+          selectedLocation.latitude,
+          selectedLocation.longitude,
+          item.location.latitude,
+          item.location.longitude);
+
+      if (dis <= distance) {
+        addMarker(item);
+      }
+    }
+
+    log(circle.toString());
+    setState(() {});
+  }
+
+  updateSliderMarker({LatLng? currentLocation}) async {
+    markers.clear();
+
     setState(() {
       isLoading = true;
     });
@@ -158,16 +256,7 @@ class MapPageState extends State<MapPage> {
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
       ),
     );
-    circle.add(
-      Circle(
-        circleId: const CircleId('myLocation'),
-        center: currentLocation ?? const LatLng(0, 0),
-        radius: 1000000 * sliderValue / 1000,
-        fillColor: Colors.blue.withOpacity(0.2),
-        strokeColor: Colors.blue,
-        strokeWidth: 2,
-      ),
-    );
+    addCircle(currentLocation: currentLocation);
 
     if (currentLocation != null) {
       for (var item in allUsers) {
@@ -182,6 +271,42 @@ class MapPageState extends State<MapPage> {
         }
       }
     }
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  updateMarker({LatLng? currentLocation}) async {
+    // markers.clear();
+
+    setState(() {
+      isLoading = true;
+    });
+    markers.add(
+      Marker(
+        markerId: const MarkerId('myLocation'),
+        position: LatLng(
+          locationData.latitude!,
+          locationData.longitude!,
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+      ),
+    );
+    // addCircle(currentLocation: currentLocation);
+
+    // if (currentLocation != null) {
+    //   for (var item in allUsers) {
+    //     double distance = Geolocator.distanceBetween(
+    //         currentLocation.latitude,
+    //         currentLocation.longitude,
+    //         item.location.latitude,
+    //         item.location.longitude);
+
+    //     if (distance < 1000 * sliderValue) {
+    //       addMarker(item);
+    //     }
+    //   }
+    // }
     setState(() {
       isLoading = false;
     });
@@ -211,24 +336,41 @@ class MapPageState extends State<MapPage> {
           title: item.fullName,
           snippet: item.mobile.toString(),
         ),
-        onTap: () => showDialog(
-            context: context,
-            builder: (context) {
-              return AlertDialog(
-                title: const Text("Details"),
-                content: SizedBox(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text("Name: ${item.fullName}"),
-                      Text("Phone number: ${item.mobile.toString()}"),
-                      Text("User type: ${item.userType}"),
-                    ],
-                  ),
-                ),
-              );
-            }),
+        onTap: () {
+          selectedLocationMarker = LatLng(
+            item.location.latitude,
+            item.location.longitude,
+          );
+          addCustomCircle(
+            currentLocation: LatLng(
+              locationData.latitude!,
+              locationData.longitude!,
+            ),
+            selectedLocation: LatLng(
+              item.location.latitude,
+              item.location.longitude,
+            ),
+          );
+          // showDialog(
+          //   context: context,
+          //   builder: (context) {
+          //     return AlertDialog(
+          //       title: const Text("Details"),
+          //       content: SizedBox(
+          //         child: Column(
+          //           crossAxisAlignment: CrossAxisAlignment.start,
+          //           mainAxisSize: MainAxisSize.min,
+          //           children: <Widget>[
+          //             Text("Name: ${item.fullName}"),
+          //             Text("Phone number: ${item.mobile.toString()}"),
+          //             Text("User type: ${item.userType}"),
+          //           ],
+          //         ),
+          //       ),
+          //     );
+          //   },
+          // );
+        },
       ),
     );
   }
